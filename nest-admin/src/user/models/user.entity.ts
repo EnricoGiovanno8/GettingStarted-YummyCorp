@@ -4,6 +4,7 @@ import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "t
 
 @Entity('users')
 export class User {
+
     @PrimaryGeneratedColumn()
     id: number;
 
@@ -23,4 +24,5 @@ export class User {
     @ManyToOne(() => Role)
     @JoinColumn({name: 'role_id'})
     role: Role;
+    
 }

@@ -1,24 +1,32 @@
-import { Body, ClassSerializerInterceptor, Controller, Delete, Get, Param, Post, Put, Query, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, ClassSerializerInterceptor, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards, UseInterceptors } from '@nestjs/common';
 import { User } from './models/user.entity';
 import { UserService } from './user.service';
 import * as bcrypt from 'bcryptjs';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { UserUpdateDto } from './models/user-update.dto';
+import { AuthService } from 'src/auth/auth.service';
+import { Request } from 'express';
+import { HasPermission } from 'src/permission/has-permission.decorator';
 
 @UseInterceptors(ClassSerializerInterceptor)
 @UseGuards(AuthGuard)
 @Controller('users')
 export class UserController {
     
-    constructor(private userService: UserService) {
+    constructor(
+        private userService: UserService,
+        private authService: AuthService
+    ) {
     }
 
     @Get()
-    async all(@Query('page') page = 1): Promise<User[]> {
-        return this.userService.paginate(page);
+    @HasPermission('users')
+    async all(@Query('page') page = 1) {
+        return this.userService.paginate(page, ['role']);
     }
 
     @Post()
+    @HasPermission('users')
     async create(@Body() body): Promise<User> {
         const password = await bcrypt.hash('1234', 12)
 
@@ -32,11 +40,48 @@ export class UserController {
     }
 
     @Get(':id')
+    @HasPermission('users')
     async get(@Param('id') id: number ) {
-        return this.userService.findOne({id})
+        return this.userService.findOne({id}, ['role'])
+    }
+
+    @Put('info')
+    @HasPermission('users')
+    async updateInfo(
+        @Body() body: UserUpdateDto,
+        @Req() request: Request
+    ) {
+        const id = await this.authService.userId(request)
+
+        await this.userService.update(id, body)
+
+        return this.userService.findOne({id}, ['role'])
+    }
+
+    @Put('password')
+    @HasPermission('users')
+    async updatePassword(
+        @Req() request: Request,
+        @Body('password') password: string,
+        @Body('password_confirm') password_confirm: string
+    ) {
+        if (password !== password_confirm) {
+            throw new BadRequestException('Password do not match!')
+        }
+
+        const hashed = await bcrypt.hash(password, 12)
+
+        const id = await this.authService.userId(request)
+
+        await this.userService.update(id, {
+            password: hashed
+        })
+
+        return this.userService.findOne({id}, ['role'])
     }
 
     @Put(':id')
+    @HasPermission('users')
     async update(
         @Param('id') id: number,
         @Body() body: UserUpdateDto
@@ -47,10 +92,11 @@ export class UserController {
             role: role_id
         })
 
-        return this.userService.findOne({id})
+        return this.userService.findOne({id}, ['role'])
     }
 
     @Delete(':id')
+    @HasPermission('users')
     async delete(@Param('id') id: number) {
         await this.userService.delete(id)
 
