@@ -9,7 +9,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe())
   app.use(cookieParser())
   app.enableCors({
-    origin: 'http://localhost:4200', // React 3000 Angular 4200 Vue 8080
+    origin: 'http://localhost:3000', // React 3000 Angular 4200 Vue 8080
     credentials: true // means we will pass cookies back and forth for every request
   })
   await app.listen(3000);
